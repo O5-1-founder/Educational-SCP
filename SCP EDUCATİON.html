@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>SCP Foundation Demo + Fotoğraf</title>
+<style>
+body { background:#0d0d0d; color:#e6e6e6; font-family:Arial, sans-serif; margin:0; padding:0; }
+header { background:#111; padding:20px; text-align:center; border-bottom:2px solid red; }
+h1 { color:red; }
+.container { padding:20px; display:flex; flex-wrap:wrap; justify-content:center; }
+.scp-card { background:#1a1a1a; border:1px solid red; padding:10px; margin:10px; border-radius:10px; width:180px; text-align:center; }
+.scp-card img { width:150px; height:100px; margin-bottom:5px; object-fit:cover; border:1px solid lime; }
+#loginScreen { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
+input { background:black; border:1px solid lime; color:lime; padding:5px; margin-top:5px; width:200px; }
+button { background:red; color:white; border:none; padding:5px; margin:2px; border-radius:5px; cursor:pointer; }
+button:hover{background:darkred;}
+#adminPanel { position:fixed; bottom:10px; right:10px; background:#111; border:2px solid red; padding:10px; border-radius:10px; display:none; max-width:350px; max-height:400px; overflow-y:auto; }
+#adminToggle { position:fixed; bottom:10px; right:10px; background:red; border:none; color:white; padding:8px; border-radius:50%; cursor:pointer; font-weight:bold; }
+.user-card { display:flex; justify-content:space-between; background:#1a1a1a; padding:5px; margin:3px 0; border-radius:5px; border:1px solid red; }
+.banned { text-decoration:line-through; color:gray; }
+.file-input { display:none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+<h2>Vakfımıza Hoş Geldiniz</h2>
+<p>Lütfen giriş yapınız:</p>
+<input type="password" id="loginInput" placeholder="Şifre..." onkeydown="checkLogin(event)">
+</div>
+
+<!-- ANA SITE -->
+<div id="mainSite" style="display:none;">
+<header>
+<h1>SCP FOUNDATION</h1>
+<p>Özel Containment Prosedürleri</p>
+</header>
+
+<div class="container" id="scpContainer"></div>
+
+<!-- Admin Panel Toggle -->
+<button id="adminToggle" onclick="toggleAdminPanel()" style="display:none;">ACP</button>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+<h3>Yönetim Paneli</h3>
+<p>SCP Fotoğraf Yükleme (Sadece Founder)</p>
+<div id="scpUploadContainer"></div>
+<hr>
+<h4>Kullanıcılar</h4>
+<div id="usersContainer"></div>
+</div>
+
+</div>
+
+<script>
+// Kullanıcı ve rol
+let role="";
+let users=[];
+
+// SCP listesi
+let scps=[
+  {name:"SCP-049", img:"https://upload.wikimedia.org/wikipedia/commons/7/7e/SCP-049_artwork.png"},
+  {name:"SCP-1096", img:"https://via.placeholder.com/150x100?text=1096"},
+  {name:"SCP-079", img:"https://upload.wikimedia.org/wikipedia/commons/4/41/SCP-079.png"},
+  {name:"SCP-173", img:"https://upload.wikimedia.org/wikipedia/commons/e/e0/SCP-173.jpg"},
+  {name:"SCP-008", img:"https://via.placeholder.com/150x100?text=008"},
+  {name:"SCP-096", img:"https://upload.wikimedia.org/wikipedia/commons/0/0d/SCP-096.png"},
+  {name:"SCP-001 (Gate Guardian)", img:"https://via.placeholder.com/150x100?text=001"}
+];
+
+// Giriş
+function checkLogin(e){
+  if(e.key==="Enter"){
+    let pass=document.getElementById("loginInput").value;
+    if(pass==="founder123"){ role="Founder"; alert("Founder olarak giriş yaptınız!"); openSite(); }
+    else if(pass==="admin123"){ role="Admin"; alert("Admin olarak giriş yaptınız!"); openSite(); }
+    else if(pass==="mod123"){ role="Moderator"; alert("Moderator olarak giriş yaptınız!"); openSite(); }
+    else{ role="User"; alert("Üye olarak giriş yaptınız."); openSite(); }
+  }
+}
+
+// Siteyi aç
+function openSite(){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("mainSite").style.display="block";
+  renderSCP();
+  if(role==="Founder"||role==="Admin"||role==="Moderator"){
+    document.getElementById("adminToggle").style.display="block";
+    simulateUsers();
+    renderUsers();
+    if(role==="Founder") renderSCPUploader();
+  }
+}
+
+// SCP render
+function renderSCP(){
+  const container=document.getElementById("scpContainer");
+  container.innerHTML="";
+  scps.forEach((scp,i)=>{
+    let div=document.createElement("div");
+    div.className="scp-card";
+    div.innerHTML=`<img id="scpImg${i}" src="${scp.img}" alt="${scp.name}"><p>${scp.name}</p>`;
+    container.appendChild(div);
+  });
+}
+
+// Admin panel aç/kapa
+function toggleAdminPanel(){
+  const panel=document.getElementById("adminPanel");
+  panel.style.display=(panel.style.display==="none")?"block":"none";
+}
+
+// SCP Fotoğraf yükleyici (Founder)
+function renderSCPUploader(){
+  const container=document.getElementById("scpUploadContainer");
+  container.innerHTML="";
+  scps.forEach((scp,i)=>{
+    let div=document.createElement("div");
+    div.innerHTML=`${scp.name} <input type="file" id="file${i}" class="file-input" onchange="loadPhoto(event,${i})">
+    <button onclick="document.getElementById('file${i}').click()">Fotoğraf Yükle</button>`;
+    container.appendChild(div);
+  });
+}
+
+// Fotoğraf yükleme
+function loadPhoto(event,index){
+  const reader=new FileReader();
+  reader.onload=function(){
+    scps[index].img=reader.result;
+    document.getElementById("scpImg"+index).src=reader.result;
+  };
+  reader.readAsDataURL(event.target.files[0]);
+}
+
+// Demo sunucu kullanıcıları
+function simulateUsers(){
+  users=[
+    {name:"Alice", role:"User", banned:false},
+    {name:"Bob", role:"User", banned:false},
+    {name:"Charlie", role:"Moderator", banned:false},
+    {name:"Dana", role:"Admin", banned:false}
+  ];
+}
+
+// Kullanıcı listesi render
+function renderUsers(){
+  const container=document.getElementById("usersContainer");
+  container.innerHTML="";
+  if(users.length===0){ container.innerHTML="<p>Hiç kullanıcı yok</p>"; return; }
+  users.forEach((u,i)=>{
+    let div=document.createElement("div");
+    div.className="user-card "+(u.banned?"banned":"");
+    div.innerHTML=`
+      <span>${u.name} (${u.role})</span>
+      <div>
+        ${role==="Founder"||role==="Admin"?`<button onclick="kickUser(${i})">Kick 10sn</button>`:""}
+        ${role==="Founder"||role==="Admin"?`<button onclick="banUser(${i})">Ban</button>`:""}
+        ${role==="Founder"?`<button onclick="makeAdmin(${i})">Admin Yap</button>`:""}
+        ${role==="Founder"||role==="Admin"?`<button onclick="makeModerator(${i})">Moderator Yap</button>`:""}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Kick işlemi
+function kickUser(index){
+  if(role!=="Founder"&&role!=="Admin"){ alert("Yetkiniz yok!"); return; }
+  users[index].banned=true;
+  renderUsers();
+  alert(users[index].name+" 10 saniyeliğine kicklendi!");
+  setTimeout(()=>{
+    users[index].banned=false;
+    renderUsers();
+    alert(users[index].name+" artık siteye tekrar giriş yapabilir!");
+  },10000);
+}
+
+// Ban işlemi
+function banUser(index){
+  if(role!=="Founder"&&role!=="Admin"){ alert("Yetkiniz yok!"); return; }
+  users[index].banned=true;
+  renderUsers();
+  alert(users[index].name+" banlandı!");
+}
+
+// Rol atama
+function makeAdmin(index){
+  if(role!=="Founder"){ alert("Yetkiniz yok!"); return; }
+  users[index].role="Admin";
+  renderUsers();
+  alert(users[index].name+" artık Admin!");
+}
+
+function makeModerator(index){
+  if(role!=="Founder"&&role!=="Admin"){ alert("Yetkiniz yok!"); return; }
+  users[index].role="Moderator";
+  renderUsers();
+  alert(users[index].name+" artık Moderator!");
+}
+</script>
+</body>
+</html>
